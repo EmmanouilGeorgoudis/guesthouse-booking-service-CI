@@ -8,63 +8,53 @@ on:
 
 jobs:
   build:
-
-    runs-on: ${{matrix.os}}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
         java: [17,21]
 
-
-    services:
-      mysql:
-        image: mysql:8
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: bookingdb
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
+    # Env for the application/tests so they can connect to the DB started
+    # by docker-compose running on the same runner.
+    env:
+      SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/bookingdb
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK 17
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: ${{matrix.java}}
+          java-version: ${{ matrix.java }}
           distribution: 'temurin'
           cache: maven
 
+      - name: Make mvnw executable
+        run: chmod +x ./mvnw
 
-      - name: starta hela systemet med docker
+      - name: Build with Maven (package, skip tests)
+        run: ./mvnw -B -DskipTests package
+
+      - name: Start services with Docker Compose
         run: docker compose up -d --build
 
-      - name: vänta på att allt ska startas
-        run: sleep 20
+      - name: Wait for app to be reachable (retry)
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8080/customer/1; then
+              echo "app is up"; break;
+            fi
+            echo "waiting for app... ($i)"; sleep 2;
+          done
 
-      - name: anrop mot ett av våra endpoints
-        run: curl -f http://localhost:8080/customer/1
+      - name: Run tests
+        run: ./mvnw test
 
-      - name: tear everything down
+      - name: Tear everything down
         if: always()
         run: docker compose down -v
 
-
-
-      - name: Test with Maven
-        run: mvn test
-
-      - name: Build with Maven
-        run: mvn -B package -DskipTests
-
-
-        env:
-          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/bookingdb
-          SPRING_DATASOURCE_USERNAME: root
-          SPRING_DATASOURCE_PASSWORD: root
 
