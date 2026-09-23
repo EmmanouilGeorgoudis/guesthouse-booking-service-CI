@@ -21,6 +21,7 @@ public class CustomerServiceClient {
     public List<CustomerDTO> getAllCustomers() {
         try {
             return restClient.get()
+                    .uri("/api/customers")
                     .retrieve()
                     .body(new ParameterizedTypeReference<List<CustomerDTO>>() {});
         } catch (ResourceAccessException e) {
@@ -31,7 +32,7 @@ public class CustomerServiceClient {
     public boolean customerExists(Long customerId) {
         try {
             restClient.get()
-                    .uri("/{id}", customerId)
+                    .uri("/api/customers/{id}", customerId)
                     .retrieve()
                     .toBodilessEntity();
             return true;
