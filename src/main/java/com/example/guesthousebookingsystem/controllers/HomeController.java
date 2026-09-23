@@ -8,11 +8,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class HomeController {
 
-    private final String customerServiceBaseUrl;
-
-    public HomeController(@Value("${customer-service.base-url}") String customerServiceBaseUrl) {
-        this.customerServiceBaseUrl = customerServiceBaseUrl;
-    }
+    @Value("${customer-service.base-url}")
+    private String customerServiceBaseUrl;
 
     @GetMapping("/")
     public String home(Model model) {
